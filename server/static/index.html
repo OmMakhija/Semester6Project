@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Microplastics Detector</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 2rem; font-weight: 700; color: #f8fafc; }
+    header h1 span { color: #3b82f6; }
+    header p { margin-top: 8px; color: #94a3b8; font-size: 0.95rem; }
+
+    .card {
+      background: #1e2130;
+      border: 1px solid #2d3148;
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 720px;
+    }
+
+    #drop-zone {
+      border: 2px dashed #3b4263;
+      border-radius: 12px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    #drop-zone:hover, #drop-zone.drag-over {
+      border-color: #3b82f6;
+      background: rgba(59,130,246,0.05);
+    }
+    #drop-zone .icon { font-size: 2.5rem; margin-bottom: 12px; }
+    #drop-zone p { color: #94a3b8; font-size: 0.9rem; }
+    #drop-zone p strong { color: #3b82f6; }
+    #file-input { display: none; }
+
+    .controls { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
+    .controls label { color: #94a3b8; font-size: 0.85rem; white-space: nowrap; }
+    .controls input[type=range] { flex: 1; accent-color: #3b82f6; }
+    #thresh-val { font-weight: 600; color: #3b82f6; min-width: 36px; text-align: right; font-size: 0.9rem; }
+
+    #analyse-btn {
+      margin-top: 20px;
+      width: 100%;
+      padding: 14px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    #analyse-btn:hover  { background: #2563eb; }
+    #analyse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #status { margin-top: 16px; font-size: 0.85rem; color: #64748b; text-align: center; min-height: 20px; }
+    #status.error   { color: #f87171; }
+    #status.success { color: #34d399; }
+
+    #results { margin-top: 32px; display: none; }
+
+    #rating-card {
+      border-radius: 14px;
+      padding: 24px 28px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255,255,255,0.07);
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      transition: background 0.4s;
+    }
+    #rating-gauge { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
+    #rating-gauge svg { width: 90px; height: 90px; transform: rotate(-90deg); }
+    #gauge-bg   { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 8; }
+    #gauge-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease, stroke 0.4s; }
+    #gauge-text {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      line-height: 1.1;
+    }
+    #gauge-score { font-size: 1.6rem; font-weight: 800; }
+    #gauge-max   { font-size: 0.65rem; color: #64748b; }
+
+    .rating-info { flex: 1; }
+    #rating-label { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
+    #rating-message { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; }
+
+    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
+    .stat-box {
+      flex: 1; background: #262b40;
+      border-radius: 10px; padding: 16px; text-align: center;
+    }
+    .stat-box .val { font-size: 1.8rem; font-weight: 700; color: #f8fafc; }
+    .stat-box .lbl { font-size: 0.72rem; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    #result-img { width: 100%; border-radius: 10px; border: 1px solid #2d3148; }
+
+    .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white; border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    footer { margin-top: 32px; color: #334155; font-size: 0.78rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>🔬 Microplastics <span>Detector</span></h1>
+    <p>Upload a water sample image to assess drinkability</p>
+  </header>
+
+  <div class="card">
+
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="icon">📷</div>
+      <p><strong>Click to upload</strong> or drag & drop</p>
+      <p style="margin-top:6px">JPG, PNG, WEBP — max 10MB</p>
+      <input type="file" id="file-input" accept="image/*" />
+    </div>
+
+    <div class="controls">
+      <label>Confidence threshold</label>
+      <input type="range" id="threshold" min="10" max="95" value="45" step="5" />
+      <span id="thresh-val">45%</span>
+    </div>
+
+    <button id="analyse-btn" disabled>Select an image first</button>
+    <div id="status"></div>
+
+    <div id="results">
+
+      <!-- Drinkability Rating Card -->
+      <div id="rating-card">
+        <div id="rating-gauge">
+          <svg viewBox="0 0 90 90">
+            <circle id="gauge-bg"   cx="45" cy="45" r="36"/>
+            <circle id="gauge-fill" cx="45" cy="45" r="36"
+                    stroke-dasharray="226.2"
+                    stroke-dashoffset="226.2"/>
+          </svg>
+          <div id="gauge-text">
+            <span id="gauge-score" style="color:#fff">—</span>
+            <span id="gauge-max">/10</span>
+          </div>
+        </div>
+        <div class="rating-info">
+          <div id="rating-label">—</div>
+          <div id="rating-message">Run a detection to see the drinkability assessment.</div>
+        </div>
+      </div>
+
+      <!-- Stats — inference time and threshold only -->
+      <div class="stats-row">
+        <div class="stat-box">
+          <div class="val" id="stat-ms">—</div>
+          <div class="lbl">Inference time (ms)</div>
+        </div>
+        <div class="stat-box">
+          <div class="val" id="stat-thresh">—</div>
+          <div class="lbl">Threshold used</div>
+        </div>
+      </div>
+
+      <!-- Original image (no annotations) -->
+      <img id="result-img" alt="Uploaded image" />
+    </div>
+
+  </div>
+
+  <footer>MobileNetV3 + SSDLite320 · Running locally · No data leaves your machine</footer>
+
+  <script>
+    const dropZone     = document.getElementById('drop-zone');
+    const fileInput    = document.getElementById('file-input');
+    const btn          = document.getElementById('analyse-btn');
+    const status       = document.getElementById('status');
+    const results      = document.getElementById('results');
+    const threshSlider = document.getElementById('threshold');
+    const threshVal    = document.getElementById('thresh-val');
+
+    let selectedFile = null;
+
+    threshSlider.addEventListener('input', () => {
+      threshVal.textContent = threshSlider.value + '%';
+    });
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) selectFile(fileInput.files[0]);
+    });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+    });
+
+    function selectFile(file) {
+      selectedFile = file;
+      dropZone.querySelector('p').innerHTML = `<strong>${file.name}</strong>`;
+      dropZone.querySelector('p').nextElementSibling.textContent = (file.size/1024/1024).toFixed(2) + ' MB';
+      btn.disabled = false;
+      btn.textContent = 'Analyse Water Sample';
+      status.textContent = '';
+      status.className = '';
+      results.style.display = 'none';
+    }
+
+    function setGauge(score, color) {
+      const circumference = 226.2;
+      const offset = circumference - (score / 10) * circumference;
+      const fill = document.getElementById('gauge-fill');
+      fill.style.stroke = color;
+      fill.style.strokeDashoffset = offset;
+      document.getElementById('gauge-score').textContent = score;
+      document.getElementById('gauge-score').style.color = color;
+    }
+
+    btn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Analysing…';
+      status.textContent = 'Sending image to model…';
+      status.className = '';
+      results.style.display = 'none';
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      const conf = threshSlider.value / 100;
+
+      try {
+        const res = await fetch(`/detect?conf_thresh=${conf}`, { method: 'POST', body: formData });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || 'Server error');
+        }
+
+        const ms       = res.headers.get('X-Inference-Ms')    ?? '?';
+        const usedConf = res.headers.get('X-Conf-Threshold')  ?? conf;
+        const rLabel   = res.headers.get('X-Rating-Label')    ?? '—';
+        const rColor   = res.headers.get('X-Rating-Color')    ?? '#94a3b8';
+        const rScore   = parseFloat(res.headers.get('X-Rating-Score') ?? '0');
+        const rMsg     = decodeURIComponent(res.headers.get('X-Rating-Message') ?? '');
+
+        document.getElementById('rating-card').style.background  = rColor + '18';
+        document.getElementById('rating-card').style.borderColor = rColor + '44';
+        document.getElementById('rating-label').textContent      = rLabel;
+        document.getElementById('rating-label').style.color      = rColor;
+        document.getElementById('rating-message').textContent    = rMsg;
+        setGauge(rScore, rColor);
+
+        document.getElementById('stat-ms').textContent     = ms;
+        document.getElementById('stat-thresh').textContent = Math.round(usedConf * 100) + '%';
+
+        const blob = await res.blob();
+        document.getElementById('result-img').src = URL.createObjectURL(blob);
+
+        results.style.display = 'block';
+        status.textContent    = `✅ Analysis complete in ${ms}ms`;
+        status.className      = 'success';
+
+      } catch (err) {
+        status.textContent = '❌ ' + err.message;
+        status.className   = 'error';
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Analyse Water Sample';
+      }
+    });
+  </script>
+</body>
+</html>
