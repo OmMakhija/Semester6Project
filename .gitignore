@@ -3,3 +3,9 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+dataset/
+*.pth
+*.zip
+history.json
+microplastics.onnx
+loss_curve.png

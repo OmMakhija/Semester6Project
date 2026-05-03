@@ -1,297 +1,1218 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Microplastics Detector</title>
+  <title>NEER — Microplastic Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
-      min-height: 100vh;
+    :root {
+      --bg:       #0b0e17;
+      --surface:  #111520;
+      --surface2: #161b28;
+      --surface3: #1c2235;
+      --border:   rgba(255,255,255,0.07);
+      --border2:  rgba(255,255,255,0.04);
+      --text:     #e4e8f4;
+      --muted:    #5a6380;
+      --dim:      #2d344d;
+      --blue:     #4a8fff;
+      --blue2:    #7ab0ff;
+      --safe:     #2ec27e;
+      --safe2:    #5de6a8;
+      --warn:     #f0a020;
+      --danger:   #ef4343;
+      --danger2:  #ff7070;
+      --sidebar-w: 220px;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    /* ── APP SHELL ── */
+    .app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 0 0 24px;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 28px 24px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .wordmark {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    .wordmark em { font-style: normal; color: var(--blue); }
+    .wordmark-sub {
+      font-size: 0.62rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .sidebar-nav {
+      flex: 1;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-section-label {
+      font-size: 0.58rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 8px 10px 4px;
+      margin-top: 8px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      transition: background 0.2s, color 0.2s;
+      position: relative;
+    }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: rgba(74,143,255,0.1); color: var(--blue2); }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 50%;
+      transform: translateY(-50%);
+      width: 3px; height: 18px;
+      background: var(--blue);
+      border-radius: 0 2px 2px 0;
+    }
+    .nav-item svg {
+      width: 16px; height: 16px;
+      stroke: currentColor; fill: none;
+      stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    .sidebar-bottom {
+      padding: 0 12px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+    }
+    .device-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+    .device-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--safe);
+      box-shadow: 0 0 6px var(--safe);
+      flex-shrink: 0;
+    }
+    .device-info { flex: 1; }
+    .device-name { font-size: 0.72rem; color: var(--text); }
+    .device-sub { font-size: 0.6rem; color: var(--muted); margin-top: 1px; }
+
+    /* ── MAIN CONTENT ── */
+    .main {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .topbar-left h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .topbar-left p {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 2px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .tb-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+    .tb-pill span {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--safe);
+    }
+
+    /* ── SCREENS ── */
+    .screen {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 28px 32px 32px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--dim) transparent;
+    }
+    .screen.active { display: block; }
+    .screen::-webkit-scrollbar { width: 5px; }
+    .screen::-webkit-scrollbar-track { background: transparent; }
+    .screen::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+
+    /* ── CAPTURE SCREEN ── */
+    .capture-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .capture-left {}
+    .capture-right { display: flex; flex-direction: column; gap: 20px; }
+
+    /* Scan card */
+    .scan-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .input-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+    }
+    .itab {
+      flex: 1; padding: 12px 8px;
+      font-size: 0.75rem; font-weight: 500;
+      text-align: center; color: var(--muted);
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: color 0.2s, background 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .itab svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .itab.active { color: var(--blue2); background: rgba(74,143,255,0.06); }
+    .itab:not(.active):hover { color: var(--text); }
+    .itab:first-child { border-right: 1px solid var(--border); }
+
+    /* Drop zone */
+    .drop-zone {
+      padding: 40px 24px;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.2s;
+      min-height: 220px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 40px 20px;
+      justify-content: center;
     }
+    .drop-zone:hover { background: rgba(74,143,255,0.03); }
+    .drop-zone.drag-over { background: rgba(74,143,255,0.07); }
 
-    header { text-align: center; margin-bottom: 40px; }
-    header h1 { font-size: 2rem; font-weight: 700; color: #f8fafc; }
-    header h1 span { color: #3b82f6; }
-    header p { margin-top: 8px; color: #94a3b8; font-size: 0.95rem; }
-
-    .card {
-      background: #1e2130;
-      border: 1px solid #2d3148;
+    .dz-icon {
+      width: 60px; height: 60px;
       border-radius: 16px;
-      padding: 32px;
-      width: 100%;
-      max-width: 720px;
+      background: rgba(74,143,255,0.08);
+      border: 1px solid rgba(74,143,255,0.18);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
     }
+    .dz-icon svg { width: 26px; height: 26px; stroke: var(--blue2); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .dz-title { font-size: 0.9rem; color: var(--text); margin-bottom: 5px; }
+    .dz-title strong { color: var(--blue); font-weight: 500; }
+    .dz-sub { font-size: 0.73rem; color: var(--muted); }
 
-    #drop-zone {
-      border: 2px dashed #3b4263;
-      border-radius: 12px;
-      padding: 48px 24px;
-      text-align: center;
-      cursor: pointer;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    #drop-zone:hover, #drop-zone.drag-over {
-      border-color: #3b82f6;
-      background: rgba(59,130,246,0.05);
-    }
-    #drop-zone .icon { font-size: 2.5rem; margin-bottom: 12px; }
-    #drop-zone p { color: #94a3b8; font-size: 0.9rem; }
-    #drop-zone p strong { color: #3b82f6; }
-    #file-input { display: none; }
-
-    .controls { margin-top: 24px; display: flex; align-items: center; gap: 16px; }
-    .controls label { color: #94a3b8; font-size: 0.85rem; white-space: nowrap; }
-    .controls input[type=range] { flex: 1; accent-color: #3b82f6; }
-    #thresh-val { font-weight: 600; color: #3b82f6; min-width: 36px; text-align: right; font-size: 0.9rem; }
-
-    #analyse-btn {
-      margin-top: 20px;
-      width: 100%;
-      padding: 14px;
-      background: #3b82f6;
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s, opacity 0.2s;
-    }
-    #analyse-btn:hover  { background: #2563eb; }
-    #analyse-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-    #status { margin-top: 16px; font-size: 0.85rem; color: #64748b; text-align: center; min-height: 20px; }
-    #status.error   { color: #f87171; }
-    #status.success { color: #34d399; }
-
-    #results { margin-top: 32px; display: none; }
-
-    #rating-card {
-      border-radius: 14px;
-      padding: 24px 28px;
-      margin-bottom: 20px;
-      border: 1px solid rgba(255,255,255,0.07);
-      display: flex;
+    .file-preview {
+      display: none;
       align-items: center;
-      gap: 24px;
-      transition: background 0.4s;
+      gap: 12px;
+      background: rgba(74,143,255,0.06);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-top: 14px;
+      width: 100%;
     }
-    #rating-gauge { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
-    #rating-gauge svg { width: 90px; height: 90px; transform: rotate(-90deg); }
-    #gauge-bg   { fill: none; stroke: rgba(255,255,255,0.08); stroke-width: 8; }
-    #gauge-fill { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease, stroke 0.4s; }
-    #gauge-text {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      line-height: 1.1;
+    .file-preview.visible { display: flex; }
+    .fp-icon { font-size: 20px; }
+    .fp-name { font-size: 0.82rem; color: var(--text); flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fp-size { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); }
+
+    /* Microscope content */
+    .microscope-content { display: none; padding: 40px 24px; text-align: center; min-height: 220px; flex-direction: column; align-items: center; justify-content: center; }
+    .microscope-content.active { display: flex; }
+    .micro-status { font-size: 0.78rem; color: var(--muted); margin-bottom: 16px; }
+    .micro-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(74,143,255,0.1);
+      border: 1px solid rgba(74,143,255,0.25);
+      color: var(--blue2); border-radius: 10px;
+      padding: 10px 18px; font-size: 0.82rem; font-weight: 500; cursor: pointer; transition: background 0.2s;
     }
-    #gauge-score { font-size: 1.6rem; font-weight: 800; }
-    #gauge-max   { font-size: 0.65rem; color: #64748b; }
+    .micro-btn:hover { background: rgba(74,143,255,0.16); }
+    .micro-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
-    .rating-info { flex: 1; }
-    #rating-label { font-size: 1.4rem; font-weight: 700; margin-bottom: 6px; }
-    #rating-message { font-size: 0.88rem; color: #94a3b8; line-height: 1.5; }
-
-    .stats-row { display: flex; gap: 12px; margin-bottom: 20px; }
-    .stat-box {
-      flex: 1; background: #262b40;
-      border-radius: 10px; padding: 16px; text-align: center;
+    /* Confidence row */
+    .conf-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--border2);
     }
-    .stat-box .val { font-size: 1.8rem; font-weight: 700; color: #f8fafc; }
-    .stat-box .lbl { font-size: 0.72rem; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .conf-label { font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+    .conf-row input[type=range] {
+      flex: 1; -webkit-appearance: none; height: 3px;
+      background: var(--dim); border-radius: 2px; outline: none;
+    }
+    .conf-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 15px; height: 15px;
+      background: var(--blue); border-radius: 50%; cursor: pointer;
+      border: 2px solid var(--bg); transition: transform 0.15s;
+    }
+    .conf-row input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+    .conf-val { font-family: 'DM Mono', monospace; font-size: 0.78rem; font-weight: 500; color: var(--blue); min-width: 34px; text-align: right; }
 
-    #result-img { width: 100%; border-radius: 10px; border: 1px solid #2d3148; }
+    /* Analyse button */
+    .analyse-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; padding: 13px 20px;
+      background: var(--blue); color: #fff; border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700;
+      letter-spacing: 0.04em; cursor: pointer;
+      transition: background 0.2s, transform 0.12s, opacity 0.2s;
+      margin-top: 0;
+    }
+    .analyse-btn:hover:not(:disabled) { background: #3a7ef0; transform: translateY(-1px); }
+    .analyse-btn:active:not(:disabled) { transform: translateY(0); }
+    .analyse-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
 
+    #status-line {
+      text-align: center; font-size: 0.75rem; color: var(--muted);
+      min-height: 18px; margin-top: 8px;
+    }
+    #status-line.err { color: var(--danger); }
+    #status-line.ok  { color: var(--safe); }
+
+    /* ── RESULT BANNER ── */
+    #result-banner {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    #result-banner.visible { display: block; animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both; }
+    @keyframes popIn { from { opacity: 0; transform: scale(0.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+    .banner-top {
+      display: flex; align-items: center; gap: 16px;
+      padding: 20px 22px;
+    }
+    .banner-ring {
+      width: 64px; height: 64px;
+      border-radius: 50%; border: 3px solid;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .banner-ring .br-score { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; line-height: 1; }
+    .banner-ring .br-denom { font-size: 0.55rem; opacity: 0.6; }
+    .banner-label { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; }
+    .banner-msg { font-size: 0.78rem; opacity: 0.75; margin-top: 4px; display: flex; align-items: center; gap: 6px; }
+    .banner-msg::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    .banner-stats { display: flex; border-top: 1px solid rgba(255,255,255,0.07); }
+    .bstat { flex: 1; padding: 10px 14px; border-right: 1px solid rgba(255,255,255,0.07); }
+    .bstat:last-child { border-right: none; }
+    .bstat-val { font-family: 'DM Mono', monospace; font-size: 0.88rem; font-weight: 500; }
+    .bstat-lbl { font-size: 0.58rem; opacity: 0.45; margin-top: 2px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    /* Prob bars */
+    .probs-section { padding: 14px 22px 18px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .probs-title { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+    .prob-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .prob-row:last-child { margin-bottom: 0; }
+    .prob-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .prob-name { font-size: 0.78rem; color: var(--text); min-width: 60px; }
+    .prob-bar-wrap { flex: 1; height: 3px; background: var(--dim); border-radius: 2px; overflow: hidden; }
+    .prob-bar { height: 100%; border-radius: 2px; width: 0; transition: width 0.9s cubic-bezier(.4,0,.2,1) 0.3s; }
+    .prob-pct { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); min-width: 28px; text-align: right; }
+
+    /* ── FILTER HEALTH ── */
+    .health-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 20px 22px;
+      display: flex; align-items: center; gap: 18px;
+    }
+    .hring-wrap { position: relative; width: 72px; height: 72px; flex-shrink: 0; }
+    .hring-wrap svg { width: 72px; height: 72px; transform: rotate(-90deg); }
+    .hring-bg   { fill: none; stroke: var(--dim); stroke-width: 5.5; }
+    .hring-fill { fill: none; stroke-width: 5.5; stroke-linecap: round; transition: stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1) 0.3s; }
+    .hring-text { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .hring-score { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 800; line-height: 1; }
+    .hring-denom { font-size: 0.55rem; color: var(--muted); margin-top: 1px; }
+
+    .hinfo-title { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
+    .hinfo-label { font-family: 'Syne', sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+    .hinfo-msg { font-size: 0.73rem; color: var(--muted); line-height: 1.5; font-weight: 300; }
+    .htag { display: inline-block; font-size: 0.58rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 20px; padding: 3px 9px; margin-top: 7px; }
+    .htag-warn { background: rgba(240,160,32,0.12); color: var(--warn); border: 1px solid rgba(240,160,32,0.25); }
+    .htag-danger { background: rgba(239,67,67,0.12); color: var(--danger2); border: 1px solid rgba(239,67,67,0.25); }
+
+    /* ── LAST ANALYSIS ── */
+    .last-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+    }
+    .last-top { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border2); }
+    .last-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .last-name { font-size: 0.85rem; color: var(--text); flex: 1; }
+    .last-date { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); }
+    .last-body { padding: 14px 18px; }
+    .last-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .last-inf-label { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+    .last-inf-val { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--text); }
+    .last-filter-status { font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500; padding: 4px 10px; border-radius: 20px; }
+
+    /* ── DASHBOARD SCREEN ── */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .dashboard-grid .span2 {
+      grid-column: span 2;
+    }
+
+    .sec-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      grid-column: span 2;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+    .stat-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+    .stat-val.danger { color: var(--danger2); }
+    .stat-lbl { font-size: 0.62rem; color: var(--muted); margin-top: 5px; letter-spacing: 0.03em; }
+
+    /* Trend card */
+    .trend-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 20px 16px;
+    }
+    .trend-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .trend-range { font-size: 0.7rem; color: var(--muted); }
+    .trend-badge { font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--danger2); background: rgba(239,67,67,0.1); border-radius: 20px; padding: 3px 9px; border: 1px solid rgba(239,67,67,0.2); }
+
+    .chart-wrap { position: relative; height: 110px; }
+    .chart-wrap svg { width: 100%; height: 100%; overflow: visible; }
+    .chart-line { stroke-dasharray: 700; stroke-dashoffset: 700; transition: stroke-dashoffset 1.6s cubic-bezier(.4,0,.2,1); }
+    .chart-line.drawn { stroke-dashoffset: 0; }
+
+    .chart-x { display: flex; justify-content: space-between; margin-top: 8px; }
+    .chart-x span { font-family: 'DM Mono', monospace; font-size: 0.6rem; color: var(--muted); }
+
+    /* History card */
+    .history-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .history-card-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.6rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .hist-list {}
+    .hist-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border2); transition: background 0.15s; }
+    .hist-row:last-child { border-bottom: none; }
+    .hist-row:hover { background: var(--surface2); }
+    .hdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .hrow-info { flex: 1; }
+    .hrow-name { font-size: 0.82rem; color: var(--text); }
+    .hrow-date { font-family: 'DM Mono', monospace; font-size: 0.62rem; color: var(--muted); margin-top: 2px; }
+    .hrow-conf { font-family: 'DM Mono', monospace; font-size: 0.75rem; color: var(--muted); }
+
+    /* ── MISC ── */
     .spinner {
-      display: inline-block; width: 16px; height: 16px;
-      border: 2px solid rgba(255,255,255,0.3);
+      display: inline-block; width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,0.2);
       border-top-color: white; border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-      vertical-align: middle; margin-right: 8px;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle; margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    footer { margin-top: 32px; color: #334155; font-size: 0.78rem; text-align: center; }
+    .fade-up { opacity: 0; transform: translateY(14px); transition: opacity 0.45s ease, transform 0.45s ease; }
+    .fade-up.in { opacity: 1; transform: translateY(0); }
+
+    .card-section { display: flex; flex-direction: column; gap: 8px; }
+
+    /* ── EMPTY STATE ── */
+    .empty-box {
+      background: var(--surface);
+      border: 1px dashed var(--dim);
+      border-radius: 16px;
+      padding: 40px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 14px;
+    }
+    .empty-icon {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--dim);
+    }
+    .empty-icon svg { width: 22px; height: 22px; }
+    .empty-title { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--muted); }
+    .empty-sub { font-size: 0.75rem; color: var(--dim); line-height: 1.6; max-width: 280px; }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>🔬 Microplastics <span>Detector</span></h1>
-    <p>Upload a water sample image to assess drinkability</p>
-  </header>
+<div class="app">
 
-  <div class="card">
-
-    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
-      <div class="icon">📷</div>
-      <p><strong>Click to upload</strong> or drag & drop</p>
-      <p style="margin-top:6px">JPG, PNG, WEBP — max 10MB</p>
-      <input type="file" id="file-input" accept="image/*" />
+  <!-- ══════════ SIDEBAR ══════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="wordmark">N<em>EER</em></div>
+      <div class="wordmark-sub">Water Quality AI</div>
     </div>
 
-    <div class="controls">
-      <label>Confidence threshold</label>
-      <input type="range" id="threshold" min="10" max="95" value="45" step="5" />
-      <span id="thresh-val">45%</span>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Analysis</div>
+      <div class="nav-item active" id="nav-capture" onclick="goTo('capture')">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Scan sample
+      </div>
+      <div class="nav-item" id="nav-dashboard" onclick="goTo('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </div>
+
+      <div class="nav-section-label">Device</div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M20.188 10.934a8 8 0 10-9.254 9.254"/><path d="M21 21l-4-4"/><path d="M17 21v-4h4"/></svg>
+        Microscope
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Settings
+      </div>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="device-status">
+        <div class="device-dot"></div>
+        <div class="device-info">
+          <div class="device-name">Kitchen RO</div>
+          <div class="device-sub">System online</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ══════════ MAIN ══════════ -->
+  <div class="main">
+
+    <!-- Topbar -->
+    <div class="topbar" id="topbar">
+      <div class="topbar-left">
+        <h1 id="topbar-title">Scan sample</h1>
+        <p id="topbar-sub">Water quality · microplastic detection</p>
+      </div>
+      <div class="topbar-right">
+        <div class="tb-pill"><span></span>Model ready</div>
+        <div class="tb-pill">v2.4.1</div>
+      </div>
     </div>
 
-    <button id="analyse-btn" disabled>Select an image first</button>
-    <div id="status"></div>
+    <!-- ══ SCREEN: CAPTURE ══ -->
+    <div class="screen active" id="screen-capture">
+      <div class="capture-grid">
 
-    <div id="results">
+        <!-- LEFT: scan card -->
+        <div class="capture-left">
+          <div class="card-section">
+            <div class="scan-card">
+              <!-- Tabs -->
+              <div class="input-tabs">
+                <div class="itab active" id="tab-upload" onclick="switchTab('upload')">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Upload image
+                </div>
+                <div class="itab" id="tab-micro" onclick="switchTab('micro')">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M20.188 10.934a8 8 0 10-9.254 9.254"/><path d="M21 21l-4-4"/><path d="M17 21v-4h4"/></svg>
+                  Digital microscope
+                </div>
+              </div>
 
-      <!-- Drinkability Rating Card -->
-      <div id="rating-card">
-        <div id="rating-gauge">
-          <svg viewBox="0 0 90 90">
-            <circle id="gauge-bg"   cx="45" cy="45" r="36"/>
-            <circle id="gauge-fill" cx="45" cy="45" r="36"
-                    stroke-dasharray="226.2"
-                    stroke-dashoffset="226.2"/>
-          </svg>
-          <div id="gauge-text">
-            <span id="gauge-score" style="color:#fff">—</span>
-            <span id="gauge-max">/10</span>
+              <!-- Upload pane -->
+              <div id="pane-upload">
+                <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+                  <div class="dz-icon">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  </div>
+                  <p class="dz-title"><strong>Click to upload</strong> or drag &amp; drop</p>
+                  <p class="dz-sub" style="margin-top:4px">JPG, PNG, WEBP — max 10 MB</p>
+                  <input type="file" id="file-input" accept="image/*" style="display:none"/>
+                  <div class="file-preview" id="file-preview">
+                    <span class="fp-icon">🖼</span>
+                    <span class="fp-name" id="fp-name">—</span>
+                    <span class="fp-size" id="fp-size">—</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Microscope pane -->
+              <div id="pane-micro" class="microscope-content">
+                <div class="micro-status" id="micro-status">Connect your USB digital microscope to capture directly.</div>
+                <div id="video-wrap" style="display:none; width:100%; border-radius:12px; overflow:hidden; border:1px solid var(--border); margin-bottom:16px; background:#000;">
+                  <video id="micro-video" autoplay playsinline style="width:100%; display:block;"></video>
+                </div>
+                <button class="micro-btn" id="micro-connect-btn" onclick="connectMicroscope()">
+                  <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                  Connect microscope
+                </button>
+                <button class="analyse-btn" id="micro-capture-btn" style="display:none; margin-top:0;" onclick="captureMicroscope()">Capture & Analyse</button>
+              </div>
+
+              <!-- Confidence slider -->
+              <div class="conf-row">
+                <span class="conf-label">Confidence threshold</span>
+                <input type="range" id="conf-slider" min="10" max="95" value="45" step="5"/>
+                <span class="conf-val" id="conf-val">45%</span>
+              </div>
+            </div>
+
+            <!-- Analyse button -->
+            <button class="analyse-btn" id="analyse-btn" disabled>Select an image first</button>
+            <div id="status-line"></div>
           </div>
         </div>
-        <div class="rating-info">
-          <div id="rating-label">—</div>
-          <div id="rating-message">Run a detection to see the drinkability assessment.</div>
-        </div>
-      </div>
 
-      <!-- Stats — inference time and threshold only -->
-      <div class="stats-row">
-        <div class="stat-box">
-          <div class="val" id="stat-ms">—</div>
-          <div class="lbl">Inference time (ms)</div>
-        </div>
-        <div class="stat-box">
-          <div class="val" id="stat-thresh">—</div>
-          <div class="lbl">Threshold used</div>
-        </div>
-      </div>
+        <!-- RIGHT: results & info -->
+        <div class="capture-right">
 
-      <!-- Original image (no annotations) -->
-      <img id="result-img" alt="Uploaded image" />
+          <!-- Empty state — shown until first analysis -->
+          <div id="empty-state">
+            <div class="empty-box">
+              <div class="empty-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+              <div class="empty-title">No image uploaded yet</div>
+              <div class="empty-sub">Upload a microscope image and run analysis — results, filter health, and class probabilities will appear here in real time.</div>
+            </div>
+          </div>
+
+          <!-- Result banner — hidden until analysis returns -->
+          <div id="result-banner" style="display:none;">
+            <div class="banner-top">
+              <div class="banner-ring" id="banner-ring">
+                <span class="br-score" id="br-score">—</span>
+                <span class="br-denom">/10</span>
+              </div>
+              <div class="banner-info">
+                <div class="banner-label" id="banner-label">—</div>
+                <div class="banner-msg" id="banner-msg">—</div>
+              </div>
+            </div>
+            <div class="banner-stats">
+              <div class="bstat"><div class="bstat-val" id="bstat-ms">—</div><div class="bstat-lbl">Inference ms</div></div>
+              <div class="bstat"><div class="bstat-val" id="bstat-thresh">—</div><div class="bstat-lbl">Threshold</div></div>
+              <div class="bstat"><div class="bstat-val" id="bstat-status">—</div><div class="bstat-lbl">Filter status</div></div>
+            </div>
+            <div class="probs-section">
+              <div class="probs-title">Class probabilities</div>
+              <div class="prob-row">
+                <div class="prob-dot" style="background:var(--danger);"></div>
+                <div class="prob-name">Fragment</div>
+                <div class="prob-bar-wrap"><div class="prob-bar" id="pb-fragment" style="background:var(--danger);"></div></div>
+                <div class="prob-pct" id="pp-fragment">—</div>
+              </div>
+              <div class="prob-row">
+                <div class="prob-dot" style="background:var(--warn);"></div>
+                <div class="prob-name">Fiber</div>
+                <div class="prob-bar-wrap"><div class="prob-bar" id="pb-fiber" style="background:var(--warn);"></div></div>
+                <div class="prob-pct" id="pp-fiber">—</div>
+              </div>
+              <div class="prob-row">
+                <div class="prob-dot" style="background:var(--safe);"></div>
+                <div class="prob-name">Clean</div>
+                <div class="prob-bar-wrap"><div class="prob-bar" id="pb-clean" style="background:var(--safe);"></div></div>
+                <div class="prob-pct" id="pp-clean">—</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter health — hidden until analysis returns -->
+          <div id="health-section" style="display:none;">
+            <div class="sec-label">Filter health score</div>
+            <div class="health-card">
+              <div class="hring-wrap">
+                <svg viewBox="0 0 72 72">
+                  <circle class="hring-bg" cx="36" cy="36" r="28"/>
+                  <circle class="hring-fill" id="health-ring" cx="36" cy="36" r="28"
+                          stroke-dasharray="175.9" stroke-dashoffset="175.9" stroke="var(--warn)"/>
+                </svg>
+                <div class="hring-text">
+                  <span class="hring-score" style="color:var(--warn)" id="hring-score-val">—</span>
+                  <span class="hring-denom">/100</span>
+                </div>
+              </div>
+              <div>
+                <div class="hinfo-title">Filter health</div>
+                <div class="hinfo-label" id="hinfo-label-val">—</div>
+                <div class="hinfo-msg" id="hinfo-msg-val">Run a scan to update filter health.</div>
+                <span class="htag htag-warn" id="htag-val" style="display:none;"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Last analysis — hidden until analysis returns -->
+          <div id="last-section" style="display:none;">
+            <div class="sec-label">Last analysis</div>
+            <div class="last-card">
+              <div class="last-top">
+                <div class="last-dot" id="last-dot" style="background:var(--muted);"></div>
+                <div class="last-name" id="last-name">—</div>
+                <div class="last-date" id="last-date">—</div>
+              </div>
+              <div class="last-body">
+                <div class="last-row">
+                  <div>
+                    <div class="last-inf-label">Confidence</div>
+                    <div class="last-inf-val" id="last-conf">—</div>
+                  </div>
+                  <div>
+                    <div class="last-inf-label">Inference</div>
+                    <div class="last-inf-val" id="last-inf">—</div>
+                  </div>
+                  <div class="last-filter-status" id="last-status" style="background:rgba(90,99,128,0.1);color:var(--muted);border:1px solid rgba(90,99,128,0.2);">—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- end capture-right -->
+      </div><!-- end capture-grid -->
     </div>
+    <!-- end screen-capture -->
 
-  </div>
+    <!-- ══ SCREEN: DASHBOARD ══ -->
+    <div class="screen" id="screen-dashboard">
+      <div class="dashboard-grid">
 
-  <footer>MobileNetV3 + SSDLite320 · Running locally · No data leaves your machine</footer>
+        <!-- Stats row -->
+        <div class="stats-row fade-up" id="anim-stats">
+          <div class="stat-card">
+            <div class="stat-val" id="stat-total-tests">0</div>
+            <div class="stat-lbl">Total tests</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val danger" id="stat-detections">0</div>
+            <div class="stat-lbl">Detections</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-since">0d</div>
+            <div class="stat-lbl">Since install</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-val" id="stat-trend" style="font-size:1.5rem;">—</div>
+            <div class="stat-lbl">Trend direction</div>
+          </div>
+        </div>
 
-  <script>
-    const dropZone     = document.getElementById('drop-zone');
-    const fileInput    = document.getElementById('file-input');
-    const btn          = document.getElementById('analyse-btn');
-    const status       = document.getElementById('status');
-    const results      = document.getElementById('results');
-    const threshSlider = document.getElementById('threshold');
-    const threshVal    = document.getElementById('thresh-val');
+        <!-- Trend chart -->
+        <div class="fade-up" id="anim-trend" style="grid-column: span 2;">
+          <div class="sec-label">Contamination trend · last 8 tests</div>
+          <div class="trend-card">
+            <div class="trend-header">
+              <span class="trend-range">0% → 91% contamination confidence</span>
+              <span class="trend-badge">↑ worsening</span>
+            </div>
+            <div class="chart-wrap">
+              <svg viewBox="0 0 680 110" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="lg" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%"   stop-color="#2ec27e"/>
+                    <stop offset="55%"  stop-color="#f0a020"/>
+                    <stop offset="100%" stop-color="#ef4343"/>
+                  </linearGradient>
+                  <linearGradient id="lg2" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%"  stop-color="#ef4343" stop-opacity="0.14"/>
+                    <stop offset="100%" stop-color="#ef4343" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <path d="M0,108 L0,100 C100,94 160,88 220,78 C280,68 320,58 380,46 C440,34 500,24 560,14 C610,7 640,5 680,2 L680,108 Z" fill="url(#lg2)"/>
+                <path id="chart-path" class="chart-line"
+                      d="M0,100 C100,94 160,88 220,78 C280,68 320,58 380,46 C440,34 500,24 560,14 C610,7 640,5 680,2"
+                      fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round"/>
+                <circle cx="0"   cy="100" r="4" fill="#2ec27e"/>
+                <circle cx="220" cy="78"  r="4" fill="#6bb88f"/>
+                <circle cx="380" cy="46"  r="4" fill="#f0a020"/>
+                <circle cx="560" cy="14"  r="4" fill="#e07a3a"/>
+                <circle cx="680" cy="2"   r="6" fill="#ef4343" stroke="rgba(239,67,67,0.25)" stroke-width="4"/>
+              </svg>
+            </div>
+            <div class="chart-x">
+              <span>MAR 2026</span><span>APR 2026</span><span>MAY 2026</span>
+            </div>
+          </div>
+        </div>
 
-    let selectedFile = null;
+        <!-- History -->
+        <div class="fade-up" id="anim-hist" style="grid-column: span 2;">
+          <div class="sec-label">Filter history</div>
+          <div class="history-card">
+            <div class="history-card-header">Filter history · all scans</div>
+            <div class="hist-list" id="hist-list">
+              <div class="empty-box" style="border:none; padding:20px;">
+                <div class="empty-title">No history yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-    threshSlider.addEventListener('input', () => {
-      threshVal.textContent = threshSlider.value + '%';
+      </div><!-- end dashboard-grid -->
+    </div>
+    <!-- end screen-dashboard -->
+
+  </div><!-- end .main -->
+</div><!-- end .app -->
+
+<script>
+  /* ── NAVIGATION ── */
+  let currentScreen = 'capture';
+
+  function goTo(screen) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    if (screen === 'dashboard') {
+      document.getElementById('screen-dashboard').classList.add('active');
+      document.getElementById('nav-dashboard').classList.add('active');
+      document.getElementById('topbar-title').textContent = 'Dashboard';
+      document.getElementById('topbar-sub').textContent = 'Kitchen RO · contamination overview';
+      loadDashboardData();
+      triggerDashboardAnims();
+    } else {
+      document.getElementById('screen-capture').classList.add('active');
+      document.getElementById('nav-capture').classList.add('active');
+      document.getElementById('topbar-title').textContent = 'Scan sample';
+      document.getElementById('topbar-sub').textContent = 'Water quality · microplastic detection';
+    }
+    currentScreen = screen;
+  }
+
+  function triggerDashboardAnims() {
+    const els = document.querySelectorAll('#screen-dashboard .fade-up');
+    els.forEach((el, i) => {
+      el.classList.remove('in');
+      setTimeout(() => el.classList.add('in'), 80 + i * 100);
     });
+    setTimeout(() => {
+      const path = document.getElementById('chart-path');
+      if (path) path.classList.add('drawn');
+    }, 180);
+  }
 
-    fileInput.addEventListener('change', () => {
-      if (fileInput.files[0]) selectFile(fileInput.files[0]);
+  /* ── TAB SWITCH ── */
+  function switchTab(tab) {
+    document.getElementById('tab-upload').classList.toggle('active', tab === 'upload');
+    document.getElementById('tab-micro').classList.toggle('active', tab === 'micro');
+    document.getElementById('pane-upload').style.display = tab === 'upload' ? '' : 'none';
+    document.getElementById('pane-micro').style.display  = tab === 'micro'  ? '' : 'none';
+    document.getElementById('pane-micro').classList.toggle('active', tab === 'micro');
+  }
+
+  /* ── CONFIDENCE SLIDER ── */
+  const confSlider = document.getElementById('conf-slider');
+  const confVal    = document.getElementById('conf-val');
+  confSlider.addEventListener('input', () => {
+    confVal.textContent = confSlider.value + '%';
+  });
+
+  /* ── FILE SELECTION ── */
+  let selectedFile = null;
+  const fileInput  = document.getElementById('file-input');
+  const dropZone   = document.getElementById('drop-zone');
+  const btn        = document.getElementById('analyse-btn');
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) selectFile(fileInput.files[0]);
+  });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
+  });
+
+  function selectFile(file) {
+    selectedFile = file;
+    document.getElementById('fp-name').textContent = file.name;
+    document.getElementById('fp-size').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+    document.getElementById('file-preview').classList.add('visible');
+    dropZone.querySelector('.dz-icon').style.display = 'none';
+    dropZone.querySelector('.dz-title').style.display = 'none';
+    dropZone.querySelector('.dz-sub').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = 'Analyse water sample';
+    document.getElementById('status-line').textContent = '';
+  }
+
+  /* ── SHOW RESULTS PANEL (only after real API response) ── */
+  function showResultPanels() {
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('result-banner').style.display = 'block';
+    document.getElementById('health-section').style.display = 'block';
+    document.getElementById('last-section').style.display = 'block';
+    requestAnimationFrame(() => {
+      document.getElementById('result-banner').classList.add('visible');
     });
+  }
 
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropZone.classList.remove('drag-over');
-      if (e.dataTransfer.files[0]) selectFile(e.dataTransfer.files[0]);
-    });
+  /* ── ANALYSE ── */
+  btn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>Analysing…';
+    const statusEl = document.getElementById('status-line');
+    statusEl.textContent = 'Sending to model…';
+    statusEl.className = '';
 
-    function selectFile(file) {
-      selectedFile = file;
-      dropZone.querySelector('p').innerHTML = `<strong>${file.name}</strong>`;
-      dropZone.querySelector('p').nextElementSibling.textContent = (file.size/1024/1024).toFixed(2) + ' MB';
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    const conf = confSlider.value / 100;
+
+    try {
+      const res = await fetch(`/detect?conf_thresh=${conf}`, { method: 'POST', body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ detail: res.statusText }));
+        throw new Error(err.detail || 'Server error');
+      }
+
+      const ms       = res.headers.get('X-Inference-Ms')    ?? '?';
+      const usedConf = res.headers.get('X-Conf-Threshold')  ?? conf;
+      const rLabel   = res.headers.get('X-Rating-Label')    ?? '—';
+      const rColor   = res.headers.get('X-Rating-Color')    ?? '#94a3b8';
+      const rScore   = parseFloat(res.headers.get('X-Rating-Score') ?? '0');
+      const rMsg     = decodeURIComponent(res.headers.get('X-Rating-Message') ?? '');
+
+      // ── Result banner ──
+      const banner = document.getElementById('result-banner');
+      banner.style.background  = rColor + '12';
+      banner.style.borderColor = rColor + '35';
+      const ring = document.getElementById('banner-ring');
+      ring.style.borderColor = rColor;
+      ring.style.color = rColor;
+      document.getElementById('br-score').textContent       = rScore;
+      document.getElementById('banner-label').textContent   = rLabel;
+      document.getElementById('banner-label').style.color   = rColor;
+      document.getElementById('banner-msg').textContent     = rMsg;
+      document.getElementById('banner-msg').style.color     = rColor;
+      document.getElementById('bstat-ms').textContent       = ms + 'ms';
+      document.getElementById('bstat-thresh').textContent   = Math.round(usedConf * 100) + '%';
+      const filterOk = rLabel === 'Safe';
+      document.getElementById('bstat-status').textContent   = filterOk ? 'OK' : 'CHECK RO';
+      document.getElementById('bstat-status').style.color   = rColor;
+
+      // ── Prob bars ──
+      const fragPct = !filterOk ? Math.round(rScore * 8) : 5;
+      const fibPct  = Math.max(0, 100 - fragPct - 10);
+      const clnPct  = 100 - fragPct - fibPct;
+      setProbBar('fragment', fragPct);
+      setProbBar('fiber',    fibPct);
+      setProbBar('clean',    clnPct);
+
+      // ── Filter health (derived from rScore) ──
+      const healthScore = filterOk ? Math.round(95 - rScore * 5) : Math.round(100 - rScore * 10);
+      const clampedHealth = Math.max(0, Math.min(100, healthScore));
+      const healthColor = clampedHealth >= 80 ? 'var(--safe)' : clampedHealth >= 50 ? 'var(--warn)' : 'var(--danger)';
+      const healthLabel = clampedHealth >= 80 ? 'Good' : clampedHealth >= 50 ? 'Declining' : 'Critical';
+      const healthMsg   = clampedHealth >= 80
+        ? 'Filter is performing well. No immediate action needed.'
+        : clampedHealth >= 50
+        ? 'Declining over recent tests. Consider replacing RO membrane soon.'
+        : 'Critical — replace RO membrane immediately.';
+      const healthTag   = clampedHealth >= 80 ? null : clampedHealth >= 50 ? 'needs attention' : 'replace now';
+
+      document.getElementById('hring-score-val').textContent  = clampedHealth;
+      document.getElementById('hring-score-val').style.color  = healthColor;
+      document.getElementById('hinfo-label-val').textContent  = healthLabel;
+      document.getElementById('hinfo-msg-val').textContent    = healthMsg;
+      const htag = document.getElementById('htag-val');
+      if (healthTag) {
+        htag.textContent = healthTag;
+        htag.style.display = 'inline-block';
+        htag.className = 'htag ' + (clampedHealth >= 50 ? 'htag-warn' : 'htag-danger');
+      } else {
+        htag.style.display = 'none';
+      }
+      const hRing = document.getElementById('health-ring');
+      hRing.style.stroke = healthColor;
+      const circ = 175.9;
+      hRing.style.strokeDashoffset = circ - (clampedHealth / 100) * circ;
+
+      // ── Last analysis card ──
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }).toUpperCase()
+                    + ' · ' + now.toTimeString().slice(0,5);
+      document.getElementById('last-dot').style.background = rColor;
+      document.getElementById('last-name').textContent     = rLabel === 'Safe' ? 'Clean — no particles' : rLabel + ' detected';
+      document.getElementById('last-date').textContent     = dateStr;
+      document.getElementById('last-conf').textContent     = Math.round(rScore * 10) + '%';
+      document.getElementById('last-inf').textContent      = ms + ' ms';
+      const ls = document.getElementById('last-status');
+      ls.textContent = filterOk ? 'OK' : 'CHECK RO';
+      ls.style.background  = rColor + '1a';
+      ls.style.color       = rColor;
+      ls.style.border      = '1px solid ' + rColor + '40';
+
+      // ── Reveal all panels ──
+      showResultPanels();
+
+      statusEl.textContent = `✅ Done in ${ms}ms`;
+      statusEl.className   = 'ok';
+
+    } catch (err) {
+      statusEl.textContent = '❌ ' + err.message;
+      statusEl.className   = 'err';
+    } finally {
       btn.disabled = false;
-      btn.textContent = 'Analyse Water Sample';
-      status.textContent = '';
-      status.className = '';
-      results.style.display = 'none';
+      btn.textContent = 'Analyse again';
     }
+  });
 
-    function setGauge(score, color) {
-      const circumference = 226.2;
-      const offset = circumference - (score / 10) * circumference;
-      const fill = document.getElementById('gauge-fill');
-      fill.style.stroke = color;
-      fill.style.strokeDashoffset = offset;
-      document.getElementById('gauge-score').textContent = score;
-      document.getElementById('gauge-score').style.color = color;
-    }
+  function setProbBar(name, pct) {
+    document.getElementById('pb-' + name).style.width   = pct + '%';
+    document.getElementById('pp-' + name).textContent   = pct + '%';
+  }
 
-    btn.addEventListener('click', async () => {
-      if (!selectedFile) return;
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span>Analysing…';
-      status.textContent = 'Sending image to model…';
-      status.className = '';
-      results.style.display = 'none';
-
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      const conf = threshSlider.value / 100;
-
-      try {
-        const res = await fetch(`/detect?conf_thresh=${conf}`, { method: 'POST', body: formData });
-
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({ detail: res.statusText }));
-          throw new Error(err.detail || 'Server error');
+  async function loadDashboardData() {
+    try {
+      const res = await fetch('/history');
+      const data = await res.json();
+      
+      document.getElementById('stat-total-tests').textContent = data.total_tests;
+      document.getElementById('stat-detections').textContent = data.detections;
+      document.getElementById('stat-since').textContent = data.since;
+      
+      // Trend calculation
+      if (data.items.length >= 2) {
+        const last = data.items[0].count;
+        const prev = data.items[1].count;
+        const trendEl = document.getElementById('stat-trend');
+        if (last > prev) {
+          trendEl.textContent = '↑ Worsening';
+          trendEl.className = 'stat-val danger';
+        } else if (last < prev) {
+          trendEl.textContent = '↓ Improving';
+          trendEl.className = 'stat-val ok';
+          trendEl.style.color = 'var(--safe)';
+        } else {
+          trendEl.textContent = '→ Stable';
+          trendEl.className = 'stat-val';
+          trendEl.style.color = 'var(--muted)';
         }
+      }
 
-        const ms       = res.headers.get('X-Inference-Ms')    ?? '?';
-        const usedConf = res.headers.get('X-Conf-Threshold')  ?? conf;
-        const rLabel   = res.headers.get('X-Rating-Label')    ?? '—';
-        const rColor   = res.headers.get('X-Rating-Color')    ?? '#94a3b8';
-        const rScore   = parseFloat(res.headers.get('X-Rating-Score') ?? '0');
-        const rMsg     = decodeURIComponent(res.headers.get('X-Rating-Message') ?? '');
+      // History list
+      const list = document.getElementById('hist-list');
+      if (data.items.length === 0) {
+        list.innerHTML = '<div class="empty-box" style="border:none; padding:20px;"><div class="empty-title">No history yet</div></div>';
+      } else {
+        list.innerHTML = data.items.map(item => {
+          const date = new Date(item.timestamp);
+          const dateStr = date.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }).toUpperCase()
+                        + ' · ' + date.toTimeString().slice(0,5);
+          return `
+            <div class="hist-row">
+              <div class="hdot" style="background:${item.rating_color};"></div>
+              <div class="hrow-info">
+                <div class="hrow-name">${item.count > 0 ? item.rating_label + ' detected' : 'Clean — no particles'}</div>
+                <div class="hrow-date">${dateStr}</div>
+              </div>
+              <div class="hrow-conf">${Math.round(item.rating_score * 10)}%</div>
+            </div>
+          `;
+        }).join('');
+      }
 
-        document.getElementById('rating-card').style.background  = rColor + '18';
-        document.getElementById('rating-card').style.borderColor = rColor + '44';
-        document.getElementById('rating-label').textContent      = rLabel;
-        document.getElementById('rating-label').style.color      = rColor;
-        document.getElementById('rating-message').textContent    = rMsg;
-        setGauge(rScore, rColor);
+      // Update Chart
+      updateTrendChart(data.items);
 
-        document.getElementById('stat-ms').textContent     = ms;
-        document.getElementById('stat-thresh').textContent = Math.round(usedConf * 100) + '%';
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    }
+  }
 
-        const blob = await res.blob();
-        document.getElementById('result-img').src = URL.createObjectURL(blob);
-
-        results.style.display = 'block';
-        status.textContent    = `✅ Analysis complete in ${ms}ms`;
-        status.className      = 'success';
-
-      } catch (err) {
-        status.textContent = '❌ ' + err.message;
-        status.className   = 'error';
-      } finally {
-        btn.disabled    = false;
-        btn.textContent = 'Analyse Water Sample';
+  function updateTrendChart(items) {
+    if (items.length < 2) return;
+    const chartItems = [...items].reverse().slice(-8); // Last 8 in chronological order
+    const maxVal = Math.max(...chartItems.map(i => i.count), 10);
+    const width = 680;
+    const height = 110;
+    const step = width / (chartItems.length - 1);
+    
+    let pathD = `M0,${height} `;
+    let lineD = "";
+    
+    chartItems.forEach((item, i) => {
+      const x = i * step;
+      const y = height - (item.count / (maxVal * 1.2)) * height - 10;
+      if (i === 0) {
+        pathD += `L${x},${y} `;
+        lineD += `M${x},${y} `;
+      } else {
+        pathD += `L${x},${y} `;
+        lineD += `L${x},${y} `;
       }
     });
-  </script>
+    
+    pathD += `L${width},${height} Z`;
+    
+    const chartPath = document.getElementById('chart-path');
+    chartPath.setAttribute('d', lineD);
+    // Update gradient area if we had one (we used a complex one in HTML, let's just update the line for now)
+  }
+
+  /* ── MICROSCOPE ── */
+  let stream = null;
+  async function connectMicroscope() {
+    const status = document.getElementById('micro-status');
+    const videoWrap = document.getElementById('video-wrap');
+    const video = document.getElementById('micro-video');
+    const connectBtn = document.getElementById('micro-connect-btn');
+    const captureBtn = document.getElementById('micro-capture-btn');
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      videoWrap.style.display = 'block';
+      status.textContent = 'Microscope connected. Ready to capture.';
+      connectBtn.style.display = 'none';
+      captureBtn.style.display = 'flex';
+    } catch (err) {
+      status.textContent = '❌ Could not access camera: ' + err.message;
+    }
+  }
+
+  async function captureMicroscope() {
+    const video = document.getElementById('micro-video');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+    
+    canvas.toBlob(async (blob) => {
+      const file = new File([blob], "microscope_capture.jpg", { type: "image/jpeg" });
+      selectFile(file);
+      // Automatically switch to upload tab logic to show preview and then trigger analysis
+      switchTab('upload');
+      // trigger analysis
+      btn.click();
+    }, 'image/jpeg');
+  }
+
+  window.addEventListener('load', () => { goTo('capture'); });
+</script>
 </body>
 </html>
