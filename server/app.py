@@ -5,6 +5,8 @@ server/app.py — FastAPI backend for Microplastics Detector
 import io
 import sys
 import time
+import json
+import datetime
 import urllib.parse
 from pathlib import Path
 
@@ -36,6 +38,25 @@ RATING_THRESHOLDS = [
     (14,    "Poor",     "#f97316", "🟠 High contamination. Not recommended for drinking."),
     (99999, "Unsafe",   "#ef4444", "🔴 Severe contamination. Do NOT drink this water."),
 ]
+
+HISTORY_FILE = BASE_DIR / "history.json"
+
+def load_history():
+    if not HISTORY_FILE.exists():
+        return []
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_to_history(entry):
+    history = load_history()
+    history.append(entry)
+    # Keep last 50 entries
+    history = history[-50:]
+    with open(HISTORY_FILE, "w") as f:
+        json.dump(history, f, indent=2)
 
 def get_rating(count: int) -> dict:
     for threshold, label, color, message in RATING_THRESHOLDS:
@@ -69,7 +90,7 @@ def load():
 @app.get("/", response_class=HTMLResponse)
 def root():
     html_path = Path(__file__).parent / "static" / "index.html"
-    return html_path.read_text()
+    return html_path.read_text(encoding="utf-8")
 
 
 @app.get("/health")
@@ -78,6 +99,30 @@ def health():
         "status": "ok",
         "model_loaded": model is not None,
         "device": str(device) if device else None,
+    }
+
+
+@app.get("/history")
+def get_history_stats():
+    history = load_history()
+    total_tests = len(history)
+    detections = sum(1 for e in history if e["count"] > 0)
+    
+    # Calculate days since first test or just return a static value if empty
+    since = "0d"
+    if history:
+        try:
+            first_date = datetime.datetime.fromisoformat(history[0]["timestamp"])
+            days = (datetime.datetime.now() - first_date).days
+            since = f"{max(1, days)}d"
+        except:
+            since = "1d"
+
+    return {
+        "total_tests": total_tests,
+        "detections": detections,
+        "since": since,
+        "items": history[::-1] # Reverse to get latest first
     }
 
 
@@ -118,6 +163,19 @@ async def detect(file: UploadFile = File(...), conf_thresh: float = CONF_THRESH)
     count  = int(keep.sum())
 
     rating = get_rating(count)
+
+    # Save to history
+    entry = {
+        "timestamp": datetime.datetime.now().isoformat(),
+        "filename": file.filename,
+        "count": count,
+        "conf_thresh": conf_thresh,
+        "rating_label": rating["label"],
+        "rating_color": rating["color"],
+        "rating_score": rating["score"],
+        "inference_ms": elapsed_ms
+    }
+    save_to_history(entry)
 
     # Return original image — no bounding boxes drawn
     buf = io.BytesIO()
