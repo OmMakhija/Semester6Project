@@ -33,7 +33,7 @@ MAX_IMAGE_MB = 10
 
 # 3-tier threshold: 0 = clean, 1-7 = clean, 8-15 = moderate, 16+ = contaminated
 def get_rating(count: int) -> dict:
-    if count <= 5:
+    if count <= 7:
         return {
             "label":    "Clean",
             "color":    "#22c55e",
